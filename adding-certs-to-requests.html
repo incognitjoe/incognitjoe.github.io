@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <meta name="author" content="Joe Butler" />
+    <meta name="robots" content="index, follow"/>
+
+    <meta property="og:title" content="Adding custom CA certs to Requests with Certifi"/>
+    <meta property="og:url" content="https://incognitjoe.github.io/adding-certs-to-requests.html"/>
+    <meta property="og:site_name" content="IncognitJoe"/>
+    <meta property="og:type" content="article"/>
+
+    <link rel="canonical" href="https://incognitjoe.github.io/adding-certs-to-requests.html" />
+
+    <title>Adding custom CA certs to Requests with Certifi | IncognitJoe</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <link rel="stylesheet" type="text/css" href="//netdna.bootstrapcdn.com/font-awesome/4.0.3/css/font-awesome.css" />
+    <link rel="stylesheet" type="text/css" href="//netdna.bootstrapcdn.com/twitter-bootstrap/2.3.2/css/bootstrap-combined.min.css" />
+
+    <link rel="stylesheet" type="text/css" href="https://incognitjoe.github.io/theme/css/main.css" />
+
+    <script type="text/javascript">var switchTo5x=true;</script>
+    <script type="text/javascript" src="http://w.sharethis.com/button/buttons.js"></script>
+    <script type="text/javascript">
+        stLight.options({
+            publisher: "",
+            doNotHash: false,
+            doNotCopy: false,
+            hashAddressBar: false
+        });
+    </script>
+</head>
+
+<body id="index">
+    <div class="row-fluid">
+        <div class="span10 offset1">
+            <header id="banner" >
+                <h1>
+                    <a href="https://incognitjoe.github.io/">IncognitJoe </a>
+                </h1>
+                <nav class="navbar">
+                    <div class="navbar-inner">
+                        <ul class="nav">
+                            <li ><a href="https://incognitjoe.github.io/pages/about.html">About</a></li>
+                            <li class="active"><a href="https://incognitjoe.github.io/category/python.html">Python</a></li>
+                        </ul>
+
+                    </div>
+                </nav>
+            </header><!-- /#banner -->
+        </div>
+    </div>
+
+    <div class="row-fluid">
+        <div class="span10 offset1">
+            <div class="row-fluid">
+<div class="span10 offset1">
+  <section>
+    <article>
+      <header>
+        <h1 class="entry-title">
+          <a href="https://incognitjoe.github.io/adding-certs-to-requests.html" rel="bookmark"
+             title="Permalink to Adding custom CA certs to Requests with Certifi">Adding custom CA certs to Requests with Certifi</a></h1>
+      </header>
+      <div class="entry-content">
+<footer class="post-info">
+    <address class="vcard author">
+        by <a class="url fn" href="https://incognitjoe.github.io/author/joe-butler.html">Joe Butler</a>
+    </address>
+
+    in <a href="https://incognitjoe.github.io/category/python.html">Python</a>
+
+    on 2016-12-24
+
+        |
+        tags:         <a href="https://incognitjoe.github.io/tag/requests.html">requests</a>
+        <a href="https://incognitjoe.github.io/tag/ssl.html">ssl</a>
+
+
+
+    
+</footer><!-- /.post-info -->
+
+        <p>The Python 
+<a href="http://docs.python-requests.org/en/latest/">Requests</a>
+library uses its own CA file by default, or will use the 
+<a href="https://pypi.python.org/pypi/certifi">certifi</a> package's certificate bundle if installed. 
+Unfortunately my employer performs SSL interception that re-signs the certificates using 
+their own intermediates, causing errors for external URLs like so:</p>
+<div class="highlight"><pre><span></span>requests.exceptions.SSLError: [SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed (_ssl.c:590)
+</pre></div>
+
+
+<p>While it's possible to pass your own CA bundle to Requests to override the default CAs, 
+there's a number of third party packages that use Requests under the hood and no way 
+to tell them to use a custom location for <code>verify</code>.  In my case, it was the Slackclient 
+package for working with the Slack Real-Time Messaging API failing to connect when I was 
+using an internal network.  While I could manually update the CA file on my laptop, 
+deploying the application to our internal platform would install a new Certifi package, 
+without my updates. Ouch.  </p>
+<p>However, we can easily check for this when our scripts start up, and update the 
+CA bundle automatically with a given CA if necessary. First, grab your custom CA and 
+save it as a PEM file. If you only have a .crt, .cer or .der file, you can convert it 
+using OpenSSL:  </p>
+<div class="highlight"><pre><span></span>openssl x509 -inform der -in certificate.cer -out certificate.pem
+</pre></div>
+
+
+<p>If you have multiple custom roots or intermediates, you can just append them all into a 
+single .pem file when you're finished converting them all.  </p>
+<p>Drag that certificate.pem into the root of your project. Now, we're going to try 
+making a request to a target URL, and if we hit a cert error, update the CA bundle in 
+use by Certifi:  </p>
+<div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">certifi</span>
+<span class="kn">import</span> <span class="nn">requests</span>
+
+<span class="k">try</span><span class="p">:</span>
+    <span class="k">print</span><span class="p">(</span><span class="s1">&#39;Checking connection to Slack...&#39;</span><span class="p">)</span>
+    <span class="n">test</span> <span class="o">=</span> <span class="n">requests</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;https://api.slack.com&#39;</span><span class="p">)</span>
+    <span class="k">print</span><span class="p">(</span><span class="s1">&#39;Connection to Slack OK.&#39;</span><span class="p">)</span>
+<span class="k">except</span> <span class="n">requests</span><span class="o">.</span><span class="n">exceptions</span><span class="o">.</span><span class="n">SSLError</span> <span class="k">as</span> <span class="n">err</span><span class="p">:</span>
+    <span class="k">print</span><span class="p">(</span><span class="s1">&#39;SSL Error. Adding custom certs to Certifi store...&#39;</span><span class="p">)</span>
+    <span class="n">cafile</span> <span class="o">=</span> <span class="n">certifi</span><span class="o">.</span><span class="n">where</span><span class="p">()</span>
+    <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="s1">&#39;certicate.pem&#39;</span><span class="p">,</span> <span class="s1">&#39;rb&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">infile</span><span class="p">:</span>
+        <span class="n">customca</span> <span class="o">=</span> <span class="n">infile</span><span class="o">.</span><span class="n">read</span><span class="p">()</span>
+    <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">cafile</span><span class="p">,</span> <span class="s1">&#39;ab&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">outfile</span><span class="p">:</span>
+        <span class="n">outfile</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">customca</span><span class="p">)</span>
+    <span class="k">print</span><span class="p">(</span><span class="s1">&#39;That might have worked.&#39;</span><span class="p">)</span>
+
+<span class="c1"># Actual app logic here, hopefully without SSL issues.  </span>
+</pre></div>
+
+
+<p>Success. Or at least, Works On My Cloud.  No need to disable SSL verifications, 
+so if the certificate is invalid for reasons other than my network's interception, 
+our application will still fail correctly.  </p>
+
+      </div><!-- /.entry-content -->
+
+    </article>
+  </section>
+</div>
+            </div>
+        </div>
+    </div>
+
+    <footer id="site-footer">
+        <div class="row-fluid">
+            <div class="span10 offset1">
+                <address>
+                    <p>
+                        This blog is proudly powered by <a href="http://getpelican.com/">Pelican</a>, which takes great advantage of <a href="http://python.org">Python</a>.
+                    </p>
+                    <p>
+                        <a href="http://github.com/jsliang/pelican-fresh/">Fresh</a> is a responsive theme designed by <a href="http://jsliang.com/">jsliang</a> and <a href="https://github.com/jsliang/pelican-fresh/graphs/contributors">contributors</a>.
+                        Special thanks to <a href="http://coding.smashingmagazine.com/2009/08/04/designing-a-html-5-layout-from-scratch/">Smashing Magazine</a> and <a href="http://getbootstrap.com/">Twitter Bootstrap</a>.
+                    </p>
+                </address>
+            </div>
+        </div>
+    </footer>
+
+    <script src="//code.jquery.com/jquery.min.js"></script>
+    <script src="//netdna.bootstrapcdn.com/bootstrap/2.3.2/js/bootstrap.min.js"></script>
+</body>
+</html>

@@ -57,7 +57,47 @@
             <div class="row-fluid">
 <div class="span9">
                 <section>
-                    <ol id="posts-list" class="hfeed" start="1">
+                    <ol id="posts-list" class="hfeed" start="2">
+                    <li>
+                        <article>
+                            <header>
+                                <h1 class="entry-title">
+                                    <a href="https://incognitjoe.github.io/adding-certs-to-requests.html" rel="bookmark" title="Permalink to Adding custom CA certs to Requests with Certifi">
+                                       Adding custom CA certs to Requests with Certifi
+                                    </a>
+                                </h1>
+                            </header>
+                            <div class="entry-content">
+<footer class="post-info">
+    <address class="vcard author">
+        by <a class="url fn" href="https://incognitjoe.github.io/author/joe-butler.html">Joe Butler</a>
+    </address>
+
+    in <a href="https://incognitjoe.github.io/category/python.html">Python</a>
+
+    on 2016-12-24
+
+        |
+        tags:         <a href="https://incognitjoe.github.io/tag/requests.html">requests</a>
+        <a href="https://incognitjoe.github.io/tag/ssl.html">ssl</a>
+
+
+
+    
+</footer><!-- /.post-info -->                                <p>The Python 
+<a href="http://docs.python-requests.org/en/latest/">Requests</a>
+library uses its own CA file by default, or will use the 
+<a href="https://pypi.python.org/pypi/certifi">certifi</a> package's certificate bundle if installed. 
+Unfortunately my employer performs SSL interception that re-signs the certificates using 
+their own intermediates, causing errors for external URLs like so:</p>
+<div class="highlight"><pre><span></span>requests.exceptions.SSLError: [SSL: CERTIFICATE_VERIFY_FAILED] certificate verify ...</pre></div>
+                                <p class="readmore">
+                                    <a class="btn btn-small btn-info" href="https://incognitjoe.github.io/adding-certs-to-requests.html">Read more...</a>
+                                </p>
+                            </div><!-- /.entry-content -->
+                            <hr/>
+                        </article>
+                    </li>
                     <li>
                         <article>
                             <header>
@@ -154,6 +194,7 @@ However, my code is often little more than a wrapper around the ...</p>
                 <h2>Social</h2>
                 <ul>
                     <li><a href="https://twitter.com/incognitjoe">Twitter</a></li>
+                    <li><a href="https://github.com/incognitjoe">Github</a></li>
                 </ul>
             </div><!-- /.social -->
 <!-- /.Tags -->
