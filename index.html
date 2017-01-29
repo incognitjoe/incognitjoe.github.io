@@ -42,8 +42,9 @@
                 <nav class="navbar">
                     <div class="navbar-inner">
                         <ul class="nav">
-                            <li ><a href="https://incognitjoe.github.io/pages/about.html">About</a></li>
-                            <li ><a href="https://incognitjoe.github.io/category/python.html">Python</a></li>
+                            <li ><a href="/">Home</a></li>
+                            <li ><a href="/category/python">Python</a></li>
+                            <li ><a href="/pages/about.html">About</a></li>
                         </ul>
 
                     </div>
@@ -90,7 +91,7 @@ library uses its own CA file by default, or will use the
 <a href="https://pypi.python.org/pypi/certifi">certifi</a> package's certificate bundle if installed. 
 Unfortunately my employer performs SSL interception that re-signs the certificates using 
 their own intermediates, causing errors for external URLs like so:</p>
-<div class="highlight"><pre><span></span>requests.exceptions.SSLError: [SSL: CERTIFICATE_VERIFY_FAILED] certificate verify ...</pre></div>
+<div class="highlight"><pre><span></span>requests.exceptions.SSLError: [SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed …</pre></div>
                                 <p class="readmore">
                                     <a class="btn btn-small btn-info" href="https://incognitjoe.github.io/adding-certs-to-requests.html">Read more...</a>
                                 </p>
@@ -125,11 +126,10 @@ their own intermediates, causing errors for external URLs like so:</p>
 
 
     
-</footer><!-- /.post-info -->                                <h1>Introduction</h1>
-<p>A little while ago I found the <a href="https://github.com/bkimminich/juice-shop">OWASP Juice Shop</a>, 
+</footer><!-- /.post-info -->                                <p>A little while ago I found the <a href="https://github.com/bkimminich/juice-shop">OWASP Juice Shop</a>, 
 and thoroughly enjoyed stumbling my way through its various challenges. The Juice Shop page itself 
 can explain what it's about better than I need to here, but anybody looking for a stepping stone 
-into the strange and mystical ...</p>
+into the strange and mystical world of …</p>
                                 <p class="readmore">
                                     <a class="btn btn-small btn-info" href="https://incognitjoe.github.io/hacking-the-juice-shop.html">Read more...</a>
                                 </p>
@@ -168,7 +168,8 @@ into the strange and mystical ...</p>
 to test other people's applications. I recently decided to check out the 
 <a href="https://hypothesis.readthedocs.io/en/latest/">Hypothesis</a>
 library for property-based unit testing out of curiosity. 
-However, my code is often little more than a wrapper around the ...</p>
+However, my code is often little more than a wrapper around the
+<a href="http://docs.python-requests.org/en/latest/">Requests …</a></p>
                                 <p class="readmore">
                                     <a class="btn btn-small btn-info" href="https://incognitjoe.github.io/hypothesis-for-system-checks.html">Read more...</a>
                                 </p>
@@ -220,6 +221,16 @@ However, my code is often little more than a wrapper around the ...</p>
         </div>
     </footer>
 
+    <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-91055983-1']);
+    _gaq.push(['_trackPageview']);
+    (function() {
+        var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+        ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+        var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+    </script>
     <script src="//code.jquery.com/jquery.min.js"></script>
     <script src="//netdna.bootstrapcdn.com/bootstrap/2.3.2/js/bootstrap.min.js"></script>
 </body>

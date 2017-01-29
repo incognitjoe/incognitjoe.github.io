@@ -42,8 +42,9 @@
                 <nav class="navbar">
                     <div class="navbar-inner">
                         <ul class="nav">
-                            <li ><a href="https://incognitjoe.github.io/pages/about.html">About</a></li>
-                            <li class="active"><a href="https://incognitjoe.github.io/category/python.html">Python</a></li>
+                            <li ><a href="/">Home</a></li>
+                            <li ><a href="/category/python">Python</a></li>
+                            <li ><a href="/pages/about.html">About</a></li>
                         </ul>
 
                     </div>
@@ -83,8 +84,7 @@
     
 </footer><!-- /.post-info -->
 
-        <h1>Introduction</h1>
-<p>A little while ago I found the <a href="https://github.com/bkimminich/juice-shop">OWASP Juice Shop</a>, 
+        <p>A little while ago I found the <a href="https://github.com/bkimminich/juice-shop">OWASP Juice Shop</a>, 
 and thoroughly enjoyed stumbling my way through its various challenges. The Juice Shop page itself 
 can explain what it's about better than I need to here, but anybody looking for a stepping stone 
 into the strange and mystical world of security testing, or even just web application testing in 
@@ -114,8 +114,8 @@ for areas to consider.  </li>
 <a href="https://portswigger.net/burp/">BURP Suite</a> or the 
 <a href="https://github.com/zaproxy/zaproxy">OWASP Zed Attack Proxy</a> useful to proxy my browser requests 
 through so I can review the requests my testing ends up making. If you're not seeing requests 
-to and from the Juice Shop, make sure you're not excluding requests to localhost accidentally:<br />
-<img alt="Firefox proxy config" src="images/firefox_zap_proxy_config.png" />  </li>
+to and from the Juice Shop, make sure you're not excluding requests to localhost accidentally:<br>
+<img alt="Firefox proxy config" src="images/firefox_zap_proxy_config.png">  </li>
 <li>Create a user account in the Juice Shop(Login &gt; Register Now!). It doesn't <em>have</em> to be a 
 real email address, but we'll want to log in as somebody to poke around initially, 
 and we don't know how to hack in to anybody else's account <em>yet</em>.</li>
@@ -172,7 +172,7 @@ admin functions are actually limited to admin users!</p>
 <h3>Access a confidential document.</h3>
 <p>Clicking around the site some more, we end up in the 'About Us' section, which is a huge block 
 of placeholder text except for one link - 
-"Check out our boring terms of use if you are interested in such lame stuff."<br />
+"Check out our boring terms of use if you are interested in such lame stuff."<br>
 Following this link opens a legal.md file, which is indeed boring, but where it <em>is</em> 
 interests us: <code>http://localhost:3000/ftp/legal.md?md_debug=true</code>. So far, 
 we haven't seen any links to that ftp directory. If we open <code>http://localhost:3000/ftp</code> 
@@ -226,7 +226,7 @@ tab in our browser's dev console while opening this page, we can see a call made
 <code>http://localhost:3000/rest/user/authentication-details/</code>. Checking the response body for 
 this, we can see a list of all user objects, including some sensitive stuff that isn't
 displayed by the user interface:
-<code>[...]{"id":1,"email":"admin@juice-sh.op","password":"0192023a7bbd73250516f069df18b500"[...]</code><br />
+<code>[...]{"id":1,"email":"admin@juice-sh.op","password":"0192023a7bbd73250516f069df18b500"[...]</code><br>
 That's not the plaintext password, it's the hash stored in the database. Unfortunately, it's
 a very weak password, and Googling it reveals it's been cracked long ago. Logging in with
 <code>admin@juice-sh.op</code> with password <code>admin123</code> awards this challenge.</p>
@@ -238,7 +238,7 @@ returns a 401 Unauthorized response, but we can use Firefox's handy 'Edit and re
 functionality by right-clicking this request and selecting it. Changing the 
 target url to <code>http://localhost:3000/rest/basket/2</code>, keeping our existing auth headers and 
 so on, completes this challenge.
-<img alt="" src="images/firefox_edit_and_resend.png" /></p>
+<img alt="" src="images/firefox_edit_and_resend.png"></p>
 <h3>Access a salesman's forgotten backup file.</h3>
 <p>Let's hop back into the /ftp folder. <code>coupons_2013.md.bak</code> certainly sounds like the kind 
 of thing somebody in Sales would be interested in, but trying to access it throws an error - 
@@ -312,7 +312,7 @@ HTTP/1.1 <span class="m">204</span> No Content
 X-Powered-By: Express
 Access-Control-Allow-Origin: *
 Access-Control-Allow-Methods: GET,HEAD,PUT,PATCH,POST,DELETE
-Date: Mon, <span class="m">19</span> Dec <span class="m">2016</span> 04:24:33 GMT
+Date: Mon, <span class="m">19</span> Dec <span class="m">2016</span> <span class="m">04</span>:24:33 GMT
 Connection: keep-alive
 </pre></div>
 
@@ -335,14 +335,14 @@ let's do this by hand for the exercise - we want a UNION SELECT command that wil
 to combine a search of the Users table with our Products search. Let's start with an injection 
 that returns zero results for products(who wants 'em?), and tries to union the users table:
 <code>invalid')) UNION SELECT * FROM USERS--</code>. With our dev console open, let's pop that in the 
-search bar, and...500 Internal Server Error. The error message is new though: <br />
-<code>SQLITE_ERROR: SELECTs to the left and right of UNION do not have the same number of result columns</code><br />
+search bar, and...500 Internal Server Error. The error message is new though: <br>
+<code>SQLITE_ERROR: SELECTs to the left and right of UNION do not have the same number of result columns</code><br>
 Aha! The query worked, we just need an equal number of columns from both tables. With a 
 bit of trial and error, we eventually work out the number and order to get our injection 
-returning all user emails, password hashes and IDs in our results page:<br />
-<code>invalid')) UNION SELECT NULL,email,password,id,NULL,NULL,NULL,NULL FROM USERS--</code><br />
+returning all user emails, password hashes and IDs in our results page:<br>
+<code>invalid')) UNION SELECT NULL,email,password,id,NULL,NULL,NULL,NULL FROM USERS--</code><br>
 Challenge complete, user table dumped. 
-<img alt="" src="images/juice_shop_sqli_user_list.png" /></p>
+<img alt="" src="images/juice_shop_sqli_user_list.png"></p>
 <h3>Post some feedback in another users name.</h3>
 <p>We've already given a zero-star feedback, but let's take a look at that request payload 
 a bit more carefully:  </p>
@@ -358,12 +358,12 @@ we can figure out how to get the Juice Shop paying us back for our not-good dead
 over to the products search with our dev tools open and adding an item to our empty 
 basket(important note: adding a new item behaves differently than adding an existing item!), 
 we can see a POST request to <code>http://localhost:3000/api/BasketItems/1</code>, where 1 is our user id. 
-The request payload for that looks like this:<br />
-<code>{"ProductId":1,"BasketId":"1","quantity":1}</code><br />
+The request payload for that looks like this:<br>
+<code>{"ProductId":1,"BasketId":"1","quantity":1}</code><br>
 ...where ProductId is the product we want, BasketId is the same as our user id, and quantity
 is naturally the amount we want. Let's try a simple boundary check here and order a negative 
-number - let's edit and resend that request, but with a different ProductId and quantity:<br />
-<code>{"ProductId":17,"BasketId":"1","quantity":-999}</code><br />
+number - let's edit and resend that request, but with a different ProductId and quantity:<br>
+<code>{"ProductId":17,"BasketId":"1","quantity":-999}</code><br>
 Browsing to our basket reveals that the Juice Shop has accepted our order, and checking out 
 grants us all the imaginary money we need for now.</p>
 <h3>Access a developer's forgotten backup file.</h3>
@@ -392,8 +392,8 @@ serving up from somewhere interesting...<code>http://localhost:3000/css/geo-boot
 Googling 'geo-bootstrap' reveals that it is most certainly <em>not</em> the theme currently in play, 
 but the Juice Shop seems to have it installed anyway. Let's go ahead and open the dev console,
 hop to the Console tab, and after a bit of guesswork set the current theme to geo-bootstrap 
-instead with the following command:<br />
-<code>$('#theme').attr('href', '/css/geo-bootstrap/swatch/bootstrap.css')</code><br />
+instead with the following command:<br>
+<code>$('#theme').attr('href', '/css/geo-bootstrap/swatch/bootstrap.css')</code><br>
 Awesome. Challenge complete, but the satisfaction pales in comparison to our fancy new theme. </p>
 <h3>Upload a file larger than 100 kB.</h3>
 <p>The filesize(and filename, next challenge) filtering both seem to happen in the user interface. 
@@ -476,8 +476,8 @@ So, sending this challenge's payload as a comment just comes back with an empty 
 Let's take a look through the package.json.bak and see what could be doing that...<code>sanitize-html</code> 
 certainly seems like a candidate. v1.4.2 is installed, which is apparently 
 <a href="https://www.npmjs.com/package/sanitize-html">a bit out of date</a> since the latest is 1.13.0 at 
-the time of writing. Looking through the changelog, we can see an interesting entry for 1.4.3:<br />
-<code>1.4.3: invokes itself recursively until the markup stops changing to guard against this issue. Bump to htmlparser2 version 3.7.x.</code><br />
+the time of writing. Looking through the changelog, we can see an interesting entry for 1.4.3:<br>
+<code>1.4.3: invokes itself recursively until the markup stops changing to guard against this issue. Bump to htmlparser2 version 3.7.x.</code><br>
 Interesting, the version in use has an unpatched bug, and that entry links us to an 
 <a href="https://github.com/fb55/htmlparser2/issues/105">example</a> of how to exploit. Let's go ahead
 and try putting some bait tags in the middle of our payload tags, so they'll be removed and 
@@ -491,16 +491,16 @@ Replacing the 'to=' param with a site of our choosing returns an error: 406 Unre
 Target URL. OK, now we know what we have to beat. Since there's obviously something checking 
 the parameters in this request for a whitelisted URL, let's see if it's smart enough to 
 tell the difference between a parameter for <code>?to</code> or if it's just taking the final parameter 
-and assuming that's the target, by opening:<br />
-<code>http://localhost:3000/redirect?to=https://google.ie/?https://github.com/bkimminich/juice-shop</code><br />
+and assuming that's the target, by opening:<br>
+<code>http://localhost:3000/redirect?to=https://google.ie/?https://github.com/bkimminich/juice-shop</code><br>
 Guess not. Wherever you go, it should be the next challenge because we're done here.</p>
 <h3>Change Bender's password into slurmCl4ssic without using SQL Injection.</h3>
 <p>Goodbye SQLi, you were a good friend but we must part ways for now. Let's go take a look at 
 this 'Change Password' window. Current password, new password and repeat new password. Not 
 so good - we can log in as Bender with a SQLi(welcome back old friend!), but we don't know his
 current password so this window won't help us much. Let's put in some random text for the 
-current password and just see where the call goes anyway...and we see a GET(?!) appear:<br />
-<code>http://localhost:3000/rest/user/change-password?current=abcde&amp;new=slurmCl4ssic&amp;repeat=slurmCl4ssic</code><br />
+current password and just see where the call goes anyway...and we see a GET(?!) appear:<br>
+<code>http://localhost:3000/rest/user/change-password?current=abcde&amp;new=slurmCl4ssic&amp;repeat=slurmCl4ssic</code><br>
 This returns a 401 unauthorized, with the message 'Current password is not correct', but we 
 were kind of expecting that. Let's put this endpoint through its paces, and drop the 
 <code>current=abcde</code> bit altogether to see what happens...oops. Looks like it worked, if the 
@@ -512,8 +512,8 @@ that could change their passwords.  </p>
 this out by using one of our XSS exploits to trigger a password change. Log in as any user 
 you want, then open 
 <a href="http://localhost:3000/#/search?q=%3Cscript%3Exmlhttp%20%3D%20new%20XMLHttpRequest;%20xmlhttp.open('GET',%20'http:%2F%2Flocalhost:3000%2Frest%2Fuser%2Fchange-password%3Fnew%3DslurmCl4ssic%26repeat%3DslurmCl4ssic');%20xmlhttp.send()%3C%2Fscript%3E">this</a> 
-link:<br />
-<code>http://localhost:3000/#/search?q=%3Cscript%3Exmlhttp%20%3D%20new%20XMLHttpRequest;%20xmlhttp.open('GET',%20'http:%2F%2Flocalhost:3000%2Frest%2Fuser%2Fchange-password%3Fnew%3DslurmCl4ssic%26repeat%3DslurmCl4ssic');%20xmlhttp.send()%3C%2Fscript%3E</code><br />
+link:<br>
+<code>http://localhost:3000/#/search?q=%3Cscript%3Exmlhttp%20%3D%20new%20XMLHttpRequest;%20xmlhttp.open('GET',%20'http:%2F%2Flocalhost:3000%2Frest%2Fuser%2Fchange-password%3Fnew%3DslurmCl4ssic%26repeat%3DslurmCl4ssic');%20xmlhttp.send()%3C%2Fscript%3E</code><br>
 Not the easiest to remember, but oh well, this is why URL shorteners were invented. Look 
 at your network traffic in the dev console - see that call to change-password? Congratulations, 
 now your password is slurmCl4ssic too. Log out and back in to confirm. Let's clean up that
@@ -575,7 +575,7 @@ characters at each of the coupons, there seems to be some commonality, but it's 
 to say what...except we already said it, way back in the "Inform the shop about an algorithm
 or library it should definitely not use the way it does." - 
 <a href="https://www.npmjs.com/package/z85">z85</a> is being used for encoding these coupons. From 
-the spec:<br />
+the spec:<br>
 <code>The binary frame SHALL have a length that is divisible by 4 with no remainder. The string frame SHALL have a length that is divisible by 5 with no remainder.</code>
 Our coupons are all 10 characters long. Trying to enter any other length in the checkout window
 actually tells us they <em>must</em> be 10 characters precisely. So we're looking at two string frames
@@ -639,6 +639,16 @@ on <a href="https://twitter.com/incognitjoe">Twitter</a>!</p>
         </div>
     </footer>
 
+    <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-91055983-1']);
+    _gaq.push(['_trackPageview']);
+    (function() {
+        var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+        ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+        var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+    </script>
     <script src="//code.jquery.com/jquery.min.js"></script>
     <script src="//netdna.bootstrapcdn.com/bootstrap/2.3.2/js/bootstrap.min.js"></script>
 </body>
