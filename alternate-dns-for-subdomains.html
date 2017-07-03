@@ -112,7 +112,13 @@ server=/.testenv.corp.com/10.10.10.1
 <p>The first directive tells any DNS lookup for <code>dc01.internal.corp.com</code>
 to check with 10.10.10.1 for an address. The second directive is much
 more useful - . at the start of a domain is a wildcard, so any requests
-to *.testenv.corp.com will look to our internal DNS for resolution. So,
+to *.testenv.corp.com will look to our internal DNS for resolution. Once
+that's all done, restart NetworkManager to pick up the new settings:</p>
+<div class="highlight"><pre><span></span>sudo service network-manager restart
+</pre></div>
+
+
+<p>So,
 now I can work away over VPN without any interruptions, and my normal
 web browsing isn't massively slowed down by going through the
 corporate proxy. Once I've disconnected from VPN, I don't need to update
