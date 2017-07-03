@@ -5,14 +5,14 @@
     <meta name="author" content="Joe Butler" />
     <meta name="robots" content="index, follow"/>
 
-    <meta property="og:title" content="IncognitJoe"/>
-    <meta property="og:url" content="https://incognitjoe.github.io"/>
+    <meta property="og:title" content="Alternate DNS resolvers for subdomains using Dnsmasq"/>
+    <meta property="og:url" content="https://incognitjoe.github.io/alternate-dns-for-subdomains.html"/>
     <meta property="og:site_name" content="IncognitJoe"/>
-    <meta property="og:type" content="website"/>
+    <meta property="og:type" content="article"/>
 
-    <link rel="canonical" href="https://incognitjoe.github.io" />
+    <link rel="canonical" href="https://incognitjoe.github.io/alternate-dns-for-subdomains.html" />
 
-    <title>IncognitJoe - Authors</title>
+    <title>Alternate DNS resolvers for subdomains using Dnsmasq | IncognitJoe</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
     <link rel="stylesheet" type="text/css" href="//netdna.bootstrapcdn.com/font-awesome/4.0.3/css/font-awesome.css" />
@@ -56,10 +56,74 @@
     <div class="row-fluid">
         <div class="span10 offset1">
             <div class="row-fluid">
-    <h1>Authors on IncognitJoe</h1>
+<div class="span10 offset1">
+  <section>
+    <article>
+      <header>
+        <h1 class="entry-title">
+          <a href="https://incognitjoe.github.io/alternate-dns-for-subdomains.html" rel="bookmark"
+             title="Permalink to Alternate DNS resolvers for subdomains using Dnsmasq">Alternate DNS resolvers for subdomains using Dnsmasq</a></h1>
+      </header>
+      <div class="entry-content">
+<footer class="post-info">
+    <address class="vcard author">
+        by <a class="url fn" href="https://incognitjoe.github.io/author/joe-butler.html">Joe Butler</a>
+    </address>
 
-    <ul>        <li><a href="https://incognitjoe.github.io/author/joe-butler.html">Joe Butler</a> (5)</li>
-    </ul>
+    in <a href="https://incognitjoe.github.io/category/linux.html">Linux</a>
+
+    on 2017-03-07
+
+        |
+        tags:         <a href="https://incognitjoe.github.io/tag/bash.html">bash</a>
+        <a href="https://incognitjoe.github.io/tag/sysadmin.html">sysadmin</a>
+
+
+
+    
+</footer><!-- /.post-info -->
+
+        <p>Today I flipped my corporate laptop over to Linux. Since we use Cisco's
+AnyConnect client, which can be a bit... finicky in some environments,
+I decided to set up my work VPN connection using
+<a href="https://github.com/wayofthepie/vpner">vpner</a>
+and route internal traffic through that docker container. However,
+this led to a problem: either I could set my host's DNS to use an internal
+DNS server manually every time I connect, or I'd have to live with
+connecting to direct IP addresses forever. Neither of these options
+is particularly pleasant, so instead I did a bit of reading on
+<a href="http://www.thekelleys.org.uk/dnsmasq/doc.html">dnsmasq</a>
+, and found you can control which DNS server is used for certain
+addresses or domains pretty trivially. I'm using Ubuntu here,
+change your paths and restart commands accordingly.</p>
+<p>First off, we want to create a file for Dnsmasq to read directives from:</p>
+<div class="highlight"><pre><span></span>sudo touch /etc/NetworkManager/dnsmasq.d/companyname
+</pre></div>
+
+
+<p>Now, using your editor of choice, simply set the domains you want to
+use an alternate DNS server for. Assuming 10.10.10.1 is our internal
+DNS:</p>
+<div class="highlight"><pre><span></span>server=/dc01.internal.corp.com/10.10.10.1
+server=/.testenv.corp.com/10.10.10.1
+</pre></div>
+
+
+<p>The first directive tells any DNS lookup for <code>dc01.internal.corp.com</code>
+to check with 10.10.10.1 for an address. The second directive is much
+more useful - . at the start of a domain is a wildcard, so any requests
+to *.testenv.corp.com will look to our internal DNS for resolution. So,
+now I can work away over VPN without any interruptions, and my normal
+web browsing isn't massively slowed down by going through the
+corporate proxy. Once I've disconnected from VPN, I don't need to update
+anything, since I'm not going to be using any internal sites at that
+point anyway, win-win.</p>
+
+      </div><!-- /.entry-content -->
+
+    </article>
+  </section>
+</div>
             </div>
         </div>
     </div>
