@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <meta name="author" content="Joe Butler" />
+    <meta name="robots" content="index, follow"/>
+
+    <meta property="og:title" content="Reading Pcap files with Scapy"/>
+    <meta property="og:url" content="https://incognitjoe.github.io/reading-pcap-with-scapy.html"/>
+    <meta property="og:site_name" content="IncognitJoe"/>
+    <meta property="og:type" content="article"/>
+
+    <link rel="canonical" href="https://incognitjoe.github.io/reading-pcap-with-scapy.html" />
+
+    <title>Reading Pcap files with Scapy | IncognitJoe</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <link rel="stylesheet" type="text/css" href="//netdna.bootstrapcdn.com/font-awesome/4.0.3/css/font-awesome.css" />
+    <link rel="stylesheet" type="text/css" href="//netdna.bootstrapcdn.com/twitter-bootstrap/2.3.2/css/bootstrap-combined.min.css" />
+
+    <link rel="stylesheet" type="text/css" href="https://incognitjoe.github.io/theme/css/main.css" />
+
+    <script type="text/javascript">var switchTo5x=true;</script>
+    <script type="text/javascript" src="https://ws.sharethis.com/button/buttons.js"></script>
+    <script type="text/javascript">
+        stLight.options({
+            publisher: "",
+            doNotHash: false,
+            doNotCopy: false,
+            hashAddressBar: false
+        });
+    </script>
+</head>
+
+<body id="index">
+    <div class="row-fluid">
+        <div class="span10 offset1">
+            <header id="banner" >
+                <h1>
+                    <a href="https://incognitjoe.github.io/">IncognitJoe </a>
+                </h1>
+                <nav class="navbar">
+                    <div class="navbar-inner">
+                        <ul class="nav">
+                            <li ><a href="/">Home</a></li>
+                            <li ><a href="/categories.html">Categories</a></li>
+                            <li ><a href="/pages/about.html">About</a></li>
+                        </ul>
+
+                    </div>
+                </nav>
+            </header><!-- /#banner -->
+        </div>
+    </div>
+
+    <div class="row-fluid">
+        <div class="span10 offset1">
+            <div class="row-fluid">
+<div class="span10 offset1">
+  <section>
+    <article>
+      <header>
+        <h1 class="entry-title">
+          <a href="https://incognitjoe.github.io/reading-pcap-with-scapy.html" rel="bookmark"
+             title="Permalink to Reading Pcap files with Scapy">Reading Pcap files with Scapy</a></h1>
+      </header>
+      <div class="entry-content">
+<footer class="post-info">
+    <address class="vcard author">
+        by <a class="url fn" href="https://incognitjoe.github.io/author/joe-butler.html">Joe Butler</a>
+    </address>
+
+    in <a href="https://incognitjoe.github.io/category/python.html">Python</a>
+
+    on 2017-07-03
+
+        |
+        tags:         <a href="https://incognitjoe.github.io/tag/security.html">security</a>
+        <a href="https://incognitjoe.github.io/tag/sysadmin.html">sysadmin</a>
+
+
+
+    
+</footer><!-- /.post-info -->
+
+        <p>Network traffic captures are a wonderful thing. However, they can be
+an absolute chore to read and Wireshark isn't the most newbie-friendly
+tool in the world. Thankfully, we have a fantastic Python module named
+<a href="https://scapy.readthedocs.io/en/latest/">Scapy</a>
+to make our lives a little easier.</p>
+<p>To begin, let's grab a bit of traffic from our own machine. First,
+start tcpdump listening on all interfaces, saving full sized packets,
+and writing the results to a pcap file:</p>
+<div class="highlight"><pre><span></span>sudo tcpdump -i any -s <span class="m">65535</span> -w example.pcap
+</pre></div>
+
+
+<p>Now, while that's running, we'll open a browser and hop to a few different sites.
+Let's say Github to check our PRs and Twitter to check if the sky is falling. When we're done,
+go back to the terminal window and Ctrl+C to end the tcpdump.</p>
+<p>Now, let's create <code>analysis.py</code> and see if we can find the DNS answer
+packets in the dump we just created:</p>
+<div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">scapy.all</span> <span class="kn">import</span> <span class="o">*</span>
+
+<span class="c1"># rdpcap comes from scapy and loads in our pcap file</span>
+<span class="n">packets</span> <span class="o">=</span> <span class="n">rdpcap</span><span class="p">(</span><span class="s1">&#39;example.pcap&#39;</span><span class="p">)</span>
+
+<span class="c1"># Let&#39;s iterate through every packet</span>
+<span class="k">for</span> <span class="n">packet</span> <span class="ow">in</span> <span class="n">packets</span><span class="p">:</span>
+    <span class="c1"># We&#39;re only interested packets with a DNS Round Robin layer</span>
+    <span class="k">if</span> <span class="n">packet</span><span class="o">.</span><span class="n">haslayer</span><span class="p">(</span><span class="n">DNSRR</span><span class="p">):</span>
+        <span class="c1"># If the an(swer) is a DNSRR, print the name it replied with.</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">packet</span><span class="o">.</span><span class="n">an</span><span class="p">,</span> <span class="n">DNSRR</span><span class="p">):</span>
+            <span class="k">print</span><span class="p">(</span><span class="n">packet</span><span class="o">.</span><span class="n">an</span><span class="o">.</span><span class="n">rrname</span><span class="p">)</span>
+</pre></div>
+
+
+<p>Running this should, depending on the state of our caches before
+running tcpdump anyway, give us the DNS responses from opening Github and Twitter:</p>
+<div class="highlight"><pre><span></span>pbs.twimg.com.
+0.ubuntu.pool.ntp.org. # Oh hey there NTP.
+github.com.
+p-va-1.e.lv.twimg.com.
+t.lv.twimg.com.
+twitter.com.
+api.github.com.
+live.github.com.
+</pre></div>
+
+
+<p>Neato.</p>
+<p>Anyway, Scapy is huge, this post won't be, but I'll hopefully add more as I learn.</p>
+
+      </div><!-- /.entry-content -->
+
+    </article>
+  </section>
+</div>
+            </div>
+        </div>
+    </div>
+
+    <footer id="site-footer">
+        <div class="row-fluid">
+            <div class="span10 offset1">
+                <address>
+                    <p>
+                        This blog is proudly powered by <a href="http://getpelican.com/">Pelican</a>, which takes great advantage of <a href="http://python.org">Python</a>.
+                    </p>
+                    <p>
+                        <a href="http://github.com/jsliang/pelican-fresh/">Fresh</a> is a responsive theme designed by <a href="http://jsliang.com/">jsliang</a> and <a href="https://github.com/jsliang/pelican-fresh/graphs/contributors">contributors</a>.
+                        Special thanks to <a href="http://coding.smashingmagazine.com/2009/08/04/designing-a-html-5-layout-from-scratch/">Smashing Magazine</a> and <a href="http://getbootstrap.com/">Twitter Bootstrap</a>.
+                    </p>
+                </address>
+            </div>
+        </div>
+    </footer>
+
+    <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-91055983-1']);
+    _gaq.push(['_trackPageview']);
+    (function() {
+        var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+        ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+        var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+    </script>
+    <script src="//code.jquery.com/jquery.min.js"></script>
+    <script src="//netdna.bootstrapcdn.com/bootstrap/2.3.2/js/bootstrap.min.js"></script>
+</body>
+</html>
