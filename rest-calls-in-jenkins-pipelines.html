@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <meta name="author" content="Joe Butler" />
+    <meta name="robots" content="index, follow"/>
+
+    <meta property="og:title" content="Adding a RESTful Client to Jenkins Pipelines"/>
+    <meta property="og:url" content="https://incognitjoe.github.io/rest-calls-in-jenkins-pipelines.html"/>
+    <meta property="og:site_name" content="IncognitJoe"/>
+    <meta property="og:type" content="article"/>
+
+    <link rel="canonical" href="https://incognitjoe.github.io/rest-calls-in-jenkins-pipelines.html" />
+
+    <title>Adding a RESTful Client to Jenkins Pipelines | IncognitJoe</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <link rel="stylesheet" type="text/css" href="//netdna.bootstrapcdn.com/font-awesome/4.0.3/css/font-awesome.css" />
+    <link rel="stylesheet" type="text/css" href="//netdna.bootstrapcdn.com/twitter-bootstrap/2.3.2/css/bootstrap-combined.min.css" />
+
+    <link rel="stylesheet" type="text/css" href="https://incognitjoe.github.io/theme/css/main.css" />
+
+    <script type="text/javascript">var switchTo5x=true;</script>
+    <script type="text/javascript" src="https://ws.sharethis.com/button/buttons.js"></script>
+    <script type="text/javascript">
+        stLight.options({
+            publisher: "",
+            doNotHash: false,
+            doNotCopy: false,
+            hashAddressBar: false
+        });
+    </script>
+</head>
+
+<body id="index">
+    <div class="row-fluid">
+        <div class="span10 offset1">
+            <header id="banner" >
+                <h1>
+                    <a href="https://incognitjoe.github.io/">IncognitJoe </a>
+                </h1>
+                <nav class="navbar">
+                    <div class="navbar-inner">
+                        <ul class="nav">
+                            <li ><a href="/">Home</a></li>
+                            <li ><a href="/categories.html">Categories</a></li>
+                            <li ><a href="/pages/about.html">About</a></li>
+                        </ul>
+
+                    </div>
+                </nav>
+            </header><!-- /#banner -->
+        </div>
+    </div>
+
+    <div class="row-fluid">
+        <div class="span10 offset1">
+            <div class="row-fluid">
+<div class="span10 offset1">
+  <section>
+    <article>
+      <header>
+        <h1 class="entry-title">
+          <a href="https://incognitjoe.github.io/rest-calls-in-jenkins-pipelines.html" rel="bookmark"
+             title="Permalink to Adding a RESTful Client to Jenkins Pipelines">Adding a RESTful Client to Jenkins Pipelines</a></h1>
+      </header>
+      <div class="entry-content">
+<footer class="post-info">
+    <address class="vcard author">
+        by <a class="url fn" href="https://incognitjoe.github.io/author/joe-butler.html">Joe Butler</a>
+    </address>
+
+    in <a href="https://incognitjoe.github.io/category/groovy.html">Groovy</a>
+
+    on 2017-07-09
+
+        |
+        tags:         <a href="https://incognitjoe.github.io/tag/devops.html">devops</a>
+
+
+
+    
+</footer><!-- /.post-info -->
+
+        <p>Roughly a year ago, I worked on a project to simplify the 
+numerous Jenkins build configurations we had to maintain using 
+<a href="https://jenkins.io/doc/book/pipeline/">Jenkins Pipelines</a> 
+, which greatly improved our overall build quality and ease of 
+introducing new builds/projects. However, one thing that repeatedly 
+popped up was our reliance on cURL for making calls to external 
+APIs - escaping quotes in the wrong place, checking whether the 
+build was running on a Linux or Windows slave, and various others. 
+I decided to fix this by adding a Groovy REST client to the 
+workflow-libs, so that Jenkins could GET/POST/DELETE without 
+dropping to a shell, and along the way ran into a number of problems
+that I've decided to write down for the next time I forget all 
+about them.</p>
+<p>If you're just looking for the code, check out 
+<a href="https://github.com/incognitjoe/jenkins-workflow-libs-httpclient-example">this repo</a> .</p>
+<h2>Jenkins Setup</h2>
+<p>First of all, you'll need Jenkins, naturally. I prefer using 
+Docker for local development, so let's fetch the latest release:  </p>
+<div class="highlight"><pre><span></span>docker pull jenkinsci/jenkins:2.68-alpine
+</pre></div>
+
+
+<p>Make a directory for the Jenkins home folder, so we can keep 
+our changes on restarts, expose a port for the web interface,
+and let's get started:</p>
+<div class="highlight"><pre><span></span>mkdir -p ~/jenkins
+docker run -p <span class="m">8080</span>:8080 -d -v /home/incognitjoe/jenkins:/var/jenkins_home --name jenkins  jenkins
+</pre></div>
+
+
+<p><strong>Note</strong>: if you intend to use workflow-libs as a git repository, expose the SSHD port
+you configure in the Jenkins control panel as well as 8080.</p>
+<p>Use <code>docker logs jenkins</code> to check the initial password it sets on 
+startup, log in, and install the recommended plugins, which include all
+of the Pipeline plugins. After creating your user account, you should 
+be greeted with a totally empty Jenkins. Restart the docker container 
+just to make sure everything's applied correctly.</p>
+<p>Now, if you browse to ~/jenkins, you should see a workflow-libs folder. 
+Read the pipeline docs for more information about this, but basically, 
+we're going to adding some Groovy scripts in here that can be 
+used from Jenkins jobs.</p>
+<h2>Development setup</h2>
+<p>See the gradle-related files 
+<a href="https://github.com/incognitjoe/jenkins-workflow-libs-httpclient-example">here</a>
+for my setup. We're going to be using 
+<a href="http://jodd.org/doc/http.html">Jodd</a> 
+as the base HttpClient.</p>
+<h5>Why Gradle?</h5>
+<p>I don't like Maven.</p>
+<h5>Why Jodd, instead of the much more common HttpBuilder?</h5>
+<p>The Jenkins runtime is a harsh and unforgiving land. Initially I
+used HttpBuilder, and while GETs performed totally fine, have a 
+snippet of the stack trace that happened when I tried to POST something:</p>
+<div class="highlight"><pre><span></span>[Pipeline] End of Pipeline
+java.lang.UnsupportedOperationException: Refusing to marshal org.codehaus.groovy.runtime.MethodClosure for security reasons
+    at hudson.util.XStream2$BlacklistedTypesConverter.marshal(XStream2.java:452)
+    at com.thoughtworks.xstream.core.AbstractReferenceMarshaller.convert(AbstractReferenceMarshaller.java:69)
+    at com.thoughtworks.xstream.core.TreeMarshaller.convertAnother(TreeMarshaller.java:58)
+    at com.thoughtworks.xstream.core.TreeMarshaller.convertAnother(TreeMarshaller.java:43)
+    at com.thoughtworks.xstream.core.AbstractReferenceMarshaller$1.convertAnother(AbstractReferenceMarshaller.java:88)
+    at com.thoughtworks.xstream.converters.reflection.SerializableConverter$1.writeToStream(SerializableConverter.java:140)
+    at com.thoughtworks.xstream.core.util.CustomObjectOutputStream.writeObjectOverride(CustomObjectOutputStream.java:84)
+    at java.io.ObjectOutputStream.writeObject(ObjectOutputStream.java:344)
+    at java.util.HashMap.internalWriteEntries(HashMap.java:1785)
+    at java.util.HashMap.writeObject(HashMap.java:1362)
+    at sun.reflect.GeneratedMethodAccessor148.invoke(Unknown Source)
+    at sun.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43)
+    at java.lang.reflect.Method.invoke(Method.java:498)
+    at com.thoughtworks.xstream.converters.reflection.SerializationMethodInvoker.callWriteObject(SerializationMethodInvoker.java:135)
+Caused: com.thoughtworks.xstream.converters.ConversionException: Could not call groovyx.net.http.StringHashMap.writeObject() : Refusing to marshal org.codehaus.groovy.runtime.MethodClosure for security reasons
+---- Debugging information ----
+message             : Could not call groovyx.net.http.StringHashMap.writeObject()
+cause-exception     : java.lang.UnsupportedOperationException
+cause-message       : Refusing to marshal org.codehaus.groovy.runtime.MethodClosure for security reasons
+-------------------------------
+</pre></div>
+
+
+<p>I couldn't figure out any way around this without an enormous 
+amount of effort, so finding Jodd was a lifesaver.</p>
+<h5>Where on earth are your tests?</h5>
+<p>So, here's the thing: Jenkins will allow us to use <code>@Grab</code> to install 
+dependencies at runtime, since workflow-libs isn't compiled ahead of time. 
+<em>However</em>, it seems that there's a 
+<a href="https://stackoverflow.com/questions/44479230/groovy-grab-causing-no-suitable-classloader-found-for-grab-in-intellij">slight issue</a>
+with trying to test scripts that use <code>@Grab</code> with Spock. Considering 
+you'll likely encounter errors within the Jenkins runtime that you 
+can't reproduce locally no matter what(see above: that marshalling
+error is never going to happen on your local machine), any tests you
+write for this stuff are going to be limited in value - that's why
+we're using a Jenkins instance as our testbed instead.</p>
+<h2>Workflow-libs Explained</h2>
+<p>Let's create two directories in workflow-libs, <code>src/</code>
+and <code>vars/</code>. Anything we add to <code>src</code> is a <em>Library</em> 
+function, while <code>vars</code> are <em>Globals</em> that can be 
+accessed from any Jenkins Pipeline job. Libraries 
+can be any valid Groovy code(mostly - nested closures 
+seem to cause endless amounts of grief, including 
+silently failing to execute - your mileage may vary), 
+but cannot access the Jenkins DSL - so, if you want to 
+drop to the shell with a Jenkins <code>sh</code> command, that 
+should go into a script in <code>vars</code>. More information 
+is available <a href="https://jenkins.io/doc/book/pipeline/shared-libraries/">here</a> .
+In particular, check the note about <code>vars</code> loading 
+as singletons, since that can lead to surprising behaviour.</p>
+<p>With all that said, our HttpClient should only need 
+URLs and content to send, without needing to access 
+environment variables and the like, so let's create
+<code>src/org/incognitjoe/JenkinsHttpClient.groovy</code> and 
+add the following:</p>
+<div class="highlight"><pre><span></span><span class="cp">#! /usr/bin/groovy</span>
+<span class="kn">package</span> <span class="n">org</span><span class="o">.</span><span class="na">incognitjoe</span>
+
+<span class="kn">import</span> <span class="nn">groovy.json.JsonBuilder</span>
+<span class="nd">@Grab</span><span class="o">(</span><span class="s2">&quot;org.jodd:jodd-http:3.8.5&quot;</span><span class="o">)</span>
+<span class="kn">import</span> <span class="nn">jodd.http.HttpRequest</span>
+
+<span class="cm">/**</span>
+<span class="cm"> * Helper class for making REST calls from a Jenkins Pipeline job.</span>
+<span class="cm"> */</span>
+<span class="kd">class</span> <span class="nc">JenkinsHttpClient</span> <span class="o">{</span>
+
+    <span class="kd">private</span> <span class="n">HttpRequest</span> <span class="n">httpRequest</span>
+    <span class="kd">private</span> <span class="n">String</span> <span class="n">userAgent</span> <span class="o">=</span> <span class="s1">&#39;Jenkins&#39;</span>
+
+    <span class="n">JenkinsHttpClient</span><span class="o">()</span> <span class="o">{</span>
+        <span class="n">httpRequest</span> <span class="o">=</span> <span class="k">new</span> <span class="n">HttpRequest</span><span class="o">()</span>
+    <span class="o">}</span>
+
+    <span class="cm">/**</span>
+<span class="cm">     * GET method</span>
+<span class="cm">     * @param url</span>
+<span class="cm">     * @return response body as String</span>
+<span class="cm">     */</span>
+    <span class="kt">def</span> <span class="nf">get</span><span class="o">(</span><span class="n">String</span> <span class="n">url</span><span class="o">)</span> <span class="o">{</span>
+        <span class="kt">def</span> <span class="n">resp</span> <span class="o">=</span> <span class="n">httpRequest</span><span class="o">.</span><span class="na">get</span><span class="o">(</span><span class="n">url</span><span class="o">)</span>
+                <span class="o">.</span><span class="na">header</span><span class="o">(</span><span class="s2">&quot;User-Agent&quot;</span><span class="o">,</span> <span class="n">userAgent</span><span class="o">)</span>
+                <span class="o">.</span><span class="na">send</span><span class="o">()</span>
+        <span class="k">return</span> <span class="n">resp</span><span class="o">.</span><span class="na">bodyText</span><span class="o">()</span>
+    <span class="o">}</span>
+
+    <span class="cm">/**</span>
+<span class="cm">     * POST method, convert body Map to application/json.</span>
+<span class="cm">     * @param url</span>
+<span class="cm">     * @param body</span>
+<span class="cm">     * @return response body as String</span>
+<span class="cm">     */</span>
+    <span class="kt">def</span> <span class="nf">postJson</span><span class="o">(</span><span class="n">String</span> <span class="n">url</span><span class="o">,</span> <span class="n">Map</span><span class="o">&lt;?,</span> <span class="o">?&gt;</span> <span class="n">body</span><span class="o">)</span> <span class="o">{</span>
+        <span class="n">String</span> <span class="n">jsonbody</span> <span class="o">=</span> <span class="k">new</span> <span class="n">JsonBuilder</span><span class="o">(</span><span class="n">body</span><span class="o">).</span><span class="na">toString</span><span class="o">()</span>
+        <span class="kt">def</span> <span class="n">resp</span> <span class="o">=</span> <span class="n">httpRequest</span><span class="o">.</span><span class="na">post</span><span class="o">(</span><span class="n">url</span><span class="o">)</span>
+                <span class="o">.</span><span class="na">header</span><span class="o">(</span><span class="s2">&quot;User-Agent&quot;</span><span class="o">,</span> <span class="n">userAgent</span><span class="o">)</span>
+                <span class="o">.</span><span class="na">contentType</span><span class="o">(</span><span class="s1">&#39;application/json&#39;</span><span class="o">)</span>
+                <span class="o">.</span><span class="na">body</span><span class="o">(</span><span class="n">jsonbody</span><span class="o">)</span>
+                <span class="o">.</span><span class="na">send</span><span class="o">()</span>
+        <span class="k">return</span> <span class="n">resp</span><span class="o">.</span><span class="na">bodyText</span><span class="o">()</span>
+    <span class="o">}</span>
+
+    <span class="cm">/**</span>
+<span class="cm">     * DELETE method</span>
+<span class="cm">     * @param url</span>
+<span class="cm">     * @return</span>
+<span class="cm">     */</span>
+    <span class="kt">def</span> <span class="nf">delete</span><span class="o">(</span><span class="n">String</span> <span class="n">url</span><span class="o">)</span> <span class="o">{</span>
+        <span class="kt">def</span> <span class="n">resp</span> <span class="o">=</span> <span class="n">httpRequest</span><span class="o">.</span><span class="na">delete</span><span class="o">(</span><span class="n">url</span><span class="o">)</span>
+                <span class="o">.</span><span class="na">header</span><span class="o">(</span><span class="s2">&quot;User-Agent&quot;</span><span class="o">,</span> <span class="n">userAgent</span><span class="o">)</span>
+                <span class="o">.</span><span class="na">send</span><span class="o">()</span>
+        <span class="k">return</span> <span class="n">resp</span>
+    <span class="o">}</span>
+<span class="o">}</span>
+</pre></div>
+
+
+<p>Nothing enormously complicated here. Now, to actually 
+use this, we'll create <code>vars/testingStuff.groovy</code> and 
+add the following:</p>
+<div class="highlight"><pre><span></span><span class="c1">// Change your package name to match your src structure</span>
+<span class="kn">import</span> <span class="nn">org.incognitjoe.JenkinsHttpClient</span>
+
+<span class="kt">def</span> <span class="nf">print_ghibli_films</span><span class="o">()</span> <span class="o">{</span>
+    <span class="n">JenkinsHttpClient</span> <span class="n">http</span> <span class="o">=</span> <span class="k">new</span> <span class="n">JenkinsHttpClient</span><span class="o">()</span>
+    <span class="n">println</span><span class="o">(</span><span class="n">http</span><span class="o">.</span><span class="na">get</span><span class="o">(</span><span class="s1">&#39;https://ghibliapi.herokuapp.com/films/&#39;</span><span class="o">))</span>
+<span class="o">}</span>
+
+<span class="kt">def</span> <span class="nf">notifySlack</span><span class="o">(</span><span class="n">String</span> <span class="n">slackHookUrl</span><span class="o">,</span> <span class="n">Map</span><span class="o">&lt;?,</span> <span class="o">?&gt;</span> <span class="n">postBody</span><span class="o">)</span> <span class="o">{</span>
+    <span class="n">JenkinsHttpClient</span> <span class="n">http</span> <span class="o">=</span> <span class="k">new</span> <span class="n">JenkinsHttpClient</span><span class="o">()</span>
+    <span class="n">http</span><span class="o">.</span><span class="na">postJson</span><span class="o">(</span><span class="n">slackHookUrl</span><span class="o">,</span> <span class="n">postBody</span><span class="o">)</span>
+<span class="o">}</span>
+</pre></div>
+
+
+<p>Might as well create <code>vars/testingStuff.txt</code> as well, 
+and add whatever help text you want - this file is 
+used to display help information in the Jenkins interface. </p>
+<p>...and we're done. Now, how do we actually <em>use</em> these 
+functions? Well, the filename of anything in <code>vars</code> is
+available to Pipeline jobs as a step, so we can create 
+a Pipeline job in Jenkins, and enter this script:</p>
+<div class="highlight"><pre><span></span><span class="c1">// Master node</span>
+<span class="n">node</span><span class="o">()</span> <span class="o">{</span>
+    <span class="n">testingStuff</span><span class="o">.</span><span class="na">print_ghibli_films</span><span class="o">()</span>
+<span class="o">}</span>
+</pre></div>
+
+
+<p>If everything's lined up correctly
+(see Common Errors and Gotchas below), 
+running that build should print out a bunch of 
+information from the Studio Ghibli API. 
+Replace and extend as required.</p>
+<h2>Common Errors and Gotchas</h2>
+<p>If you're reading this far, presumably you're making 
+changes to the Pipeline files since film data isn't all
+that useful to you, so there's a couple of things 
+you should watch out for:</p>
+<ul>
+<li><strong>script security settings</strong>: Jenkins will block a 
+pretty considerable number of method calls by default, 
+which you'll either need to review and approve as they
+ happen in the control panel, or you can throw caution 
+ to the wind and install the 
+<a href="https://wiki.jenkins.io/display/JENKINS/Permissive+Script+Security+Plugin">Permissive Script Security</a> 
+plugin.</li>
+<li><strong>closures not executing</strong>: this comes up in odd places, 
+but if you have a few nested closures and you're getting null 
+values where you'd expect <em>anything else at all</em>, try 
+rewriting your code to not use closure composition. </li>
+<li><strong>'No such DSL method'</strong>: this error can be a bit 
+overwhelming, but if you're absolutely sure you haven't
+made a typo when calling your custom functions, then you're
+likely looking for an argument mismatch, e.g. you 
+tried to call a function that requires two args but 
+only gave one, or you passed a List where a String was 
+expected.</li>
+<li><strong>SSL errors</strong>: remember, any certs you need to trust 
+have to be added to the Jenkins JVM keystore, not the 
+system trust.</li>
+</ul>
+
+      </div><!-- /.entry-content -->
+
+    </article>
+  </section>
+</div>
+            </div>
+        </div>
+    </div>
+
+    <footer id="site-footer">
+        <div class="row-fluid">
+            <div class="span10 offset1">
+                <address>
+                    <p>
+                        This blog is proudly powered by <a href="http://getpelican.com/">Pelican</a>, which takes great advantage of <a href="http://python.org">Python</a>.
+                    </p>
+                    <p>
+                        <a href="http://github.com/jsliang/pelican-fresh/">Fresh</a> is a responsive theme designed by <a href="http://jsliang.com/">jsliang</a> and <a href="https://github.com/jsliang/pelican-fresh/graphs/contributors">contributors</a>.
+                        Special thanks to <a href="http://coding.smashingmagazine.com/2009/08/04/designing-a-html-5-layout-from-scratch/">Smashing Magazine</a> and <a href="http://getbootstrap.com/">Twitter Bootstrap</a>.
+                    </p>
+                </address>
+            </div>
+        </div>
+    </footer>
+
+    <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-91055983-1']);
+    _gaq.push(['_trackPageview']);
+    (function() {
+        var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+        ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+        var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+    </script>
+    <script src="//code.jquery.com/jquery.min.js"></script>
+    <script src="//netdna.bootstrapcdn.com/bootstrap/2.3.2/js/bootstrap.min.js"></script>
+</body>
+</html>
