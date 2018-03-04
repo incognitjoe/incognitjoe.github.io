@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <meta name="author" content="Joe Butler" />
+    <meta name="robots" content="index, follow"/>
+
+    <meta property="og:title" content="Super dependency injection in Python"/>
+    <meta property="og:url" content="https://incognitjoe.github.io/super-dependency-injection-in-python.html"/>
+    <meta property="og:site_name" content="IncognitJoe"/>
+    <meta property="og:type" content="article"/>
+
+    <link rel="canonical" href="https://incognitjoe.github.io/super-dependency-injection-in-python.html" />
+
+    <title>Super dependency injection in Python | IncognitJoe</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <link rel="stylesheet" type="text/css" href="//netdna.bootstrapcdn.com/font-awesome/4.0.3/css/font-awesome.css" />
+    <link rel="stylesheet" type="text/css" href="//netdna.bootstrapcdn.com/twitter-bootstrap/2.3.2/css/bootstrap-combined.min.css" />
+
+    <link rel="stylesheet" type="text/css" href="https://incognitjoe.github.io/theme/css/main.css" />
+
+    <script type="text/javascript">var switchTo5x=true;</script>
+    <script type="text/javascript" src="https://ws.sharethis.com/button/buttons.js"></script>
+    <script type="text/javascript">
+        stLight.options({
+            publisher: "",
+            doNotHash: false,
+            doNotCopy: false,
+            hashAddressBar: false
+        });
+    </script>
+</head>
+
+<body id="index">
+    <div class="row-fluid">
+        <div class="span10 offset1">
+            <header id="banner" >
+                <h1>
+                    <a href="https://incognitjoe.github.io/">IncognitJoe </a>
+                </h1>
+                <nav class="navbar">
+                    <div class="navbar-inner">
+                        <ul class="nav">
+                            <li ><a href="/">Home</a></li>
+                            <li ><a href="/categories.html">Categories</a></li>
+                            <li ><a href="/pages/about.html">About</a></li>
+                        </ul>
+
+                    </div>
+                </nav>
+            </header><!-- /#banner -->
+        </div>
+    </div>
+
+    <div class="row-fluid">
+        <div class="span10 offset1">
+            <div class="row-fluid">
+<div class="span10 offset1">
+  <section>
+    <article>
+      <header>
+        <h1 class="entry-title">
+          <a href="https://incognitjoe.github.io/super-dependency-injection-in-python.html" rel="bookmark"
+             title="Permalink to Super dependency injection in Python">Super dependency injection in Python</a></h1>
+      </header>
+      <div class="entry-content">
+<footer class="post-info">
+    <address class="vcard author">
+        by <a class="url fn" href="https://incognitjoe.github.io/author/joe-butler.html">Joe Butler</a>
+    </address>
+
+    in <a href="https://incognitjoe.github.io/category/python.html">Python</a>
+
+    on 2018-03-04
+
+        |
+        tags:         <a href="https://incognitjoe.github.io/tag/requests.html">requests</a>
+
+
+
+    
+</footer><!-- /.post-info -->
+
+        <p>This isn't a blog post about some great dependency injection framework I'm fond of. Rather,
+it's about using the <code>super()</code> method to change the behaviour of our classes in 
+different contexts. If you're familiar with how super works in single inheritance 
+languages, this might sound a bit mad - in my experience elsewhere, super calls out to
+the parent class, so if you have class B extending class A, and B calls super 
+anywhere, then class A's method is invoked. However, this is not the case in Python - 
+for classes constructed using multiple inheritance, Python's Method Resolution Order, 
+better known as the MRO, changes dynamically to determine how super is invoked. 
+In effect - if you use super in your class, then one of your children invokes super, 
+the child's parents(of which your class is only one!) determines which method is invoked.</p>
+<p>Confused? Let's step through an example and hopefully that'll clear things up.</p>
+<p>So, simple enough situation, we're building some kind of service that makes HTTP calls 
+to other services. We're going to use the 
+<a href="http://docs.python-requests.org/en/master/">Requests</a>
+library instead of writing all our own session handling and so on, but we do want to 
+put some boilerplate stuff like custom headers, logging and error handling in one place, 
+so we'll subclass <code>Session</code>:</p>
+<div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">requests</span>
+
+
+<span class="k">class</span> <span class="nc">CustomSession</span><span class="p">(</span><span class="n">requests</span><span class="o">.</span><span class="n">Session</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">headers</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="s1">&#39;User-agent&#39;</span><span class="p">:</span> <span class="s1">&#39;CustomSession&#39;</span><span class="p">,</span> <span class="s1">&#39;Accept&#39;</span><span class="p">:</span> <span class="s1">&#39;application/json&#39;</span><span class="p">})</span>
+
+    <span class="k">def</span> <span class="nf">get</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">url</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="k">print</span><span class="p">(</span><span class="s1">&#39;Performing GET on {}&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">url</span><span class="p">))</span>
+        <span class="n">resp</span> <span class="o">=</span> <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">url</span><span class="o">=</span><span class="n">url</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="n">resp</span><span class="o">.</span><span class="n">raise_for_status</span><span class="p">()</span>
+        <span class="k">print</span><span class="p">(</span><span class="s1">&#39;{} returned status: {}&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">url</span><span class="p">,</span> <span class="n">resp</span><span class="o">.</span><span class="n">status_code</span><span class="p">))</span>
+        <span class="k">return</span> <span class="n">resp</span><span class="o">.</span><span class="n">json</span><span class="p">()</span>
+</pre></div>
+
+
+<p>With that out of the way, we'll use our CustomSession as a base for our client:</p>
+<div class="highlight"><pre><span></span><span class="k">class</span> <span class="nc">MyAppClient</span><span class="p">(</span><span class="n">CustomSession</span><span class="p">):</span>
+    <span class="n">URL</span> <span class="o">=</span> <span class="s1">&#39;https://myapp.corpdomain/&#39;</span>
+
+    <span class="k">def</span> <span class="nf">get_stuff</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">resp</span> <span class="o">=</span> <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">url</span><span class="o">=</span><span class="s1">&#39;{}stuff&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">URL</span><span class="p">))</span>
+        <span class="k">return</span> <span class="n">resp</span>
+</pre></div>
+
+
+<p>Hopefully your actual API wouldn't look so poorly, but that's not the point of this post.
+Anyway, with that done, <code>MyAppClient().get_stuff()</code> makes a GET request to 
+<code>https://myapp.corpdomain/stuff</code>, throws an exception if the status is not 2xx/3xx, and 
+returns the JSON response. Neat. However, we really do not want our tests
+making live HTTP calls constantly, so this might be a bit of a problem. Let's subclass 
+CustomSession and make a TestSession that overrides our <code>get()</code> and just returns an 
+empty dictionary for now:</p>
+<div class="highlight"><pre><span></span><span class="k">class</span> <span class="nc">TestSession</span><span class="p">(</span><span class="n">CustomSession</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">get</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">url</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="k">print</span><span class="p">(</span><span class="s1">&#39;TEST: app tried to GET {}&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">url</span><span class="p">))</span>
+        <span class="k">return</span> <span class="p">{}</span>
+</pre></div>
+
+
+<p>Then let's do the complicated task of creating a test class that contains all the methods
+in MyAppClient but replaces the <code>get()</code> calls inherited from CustomSession with calls to 
+TestSession:</p>
+<div class="highlight"><pre><span></span><span class="k">class</span> <span class="nc">TestMyAppClient</span><span class="p">(</span><span class="n">MyAppClient</span><span class="p">,</span> <span class="n">TestSession</span><span class="p">):</span>
+    <span class="k">pass</span>
+</pre></div>
+
+
+<p>Now when we run <code>TestMyAppClient().get_stuff()</code>, we see:</p>
+<div class="highlight"><pre><span></span>TEST: app tried to GET https://myapp.corpdomain/stuff
+</pre></div>
+
+
+<p>OK, so what's happening here? Basically the MRO <em>calls the next method, not the parent
+method</em> in our classes. If we check the <code>help()</code> for our TestMyAppClient, we can see 
+the resolution order:</p>
+<div class="highlight"><pre><span></span> |  Method resolution order:
+ |      TestMyAppClient
+ |      MyAppClient
+ |      TestSession
+ |      CustomSession
+ |      requests.sessions.Session
+ |      requests.sessions.SessionRedirectMixin
+ |      builtins.object
+ |  
+ |  Methods inherited from MyAppClient:
+ |  
+ |  get_stuff(self)
+</pre></div>
+
+
+<p>So, we have a <code>super().get()</code> call inherited from MyAppClient, <em>but</em> TestSession is next
+in our resolution order, so that <code>get()</code> is invoked instead of the CustomSession's, 
+despite MyAppClient having zero knowledge of TestSession.</p>
+<p>Of course, this isn't just useful in testing - you could extend your CustomSession to 
+fetch and parse <code>application/xml</code> responses instead of JSON, or have a <code>DebugSession</code>
+that adds an absurd amount of logging in place of our little print statements - once
+you're comfortable with determining how super is going to resolve, it opens up all
+kinds of possibilities.</p>
+
+      </div><!-- /.entry-content -->
+
+    </article>
+  </section>
+</div>
+            </div>
+        </div>
+    </div>
+
+    <footer id="site-footer">
+        <div class="row-fluid">
+            <div class="span10 offset1">
+                <address>
+                    <p>
+                        This blog is proudly powered by <a href="http://getpelican.com/">Pelican</a>, which takes great advantage of <a href="http://python.org">Python</a>.
+                    </p>
+                    <p>
+                        <a href="http://github.com/jsliang/pelican-fresh/">Fresh</a> is a responsive theme designed by <a href="http://jsliang.com/">jsliang</a> and <a href="https://github.com/jsliang/pelican-fresh/graphs/contributors">contributors</a>.
+                        Special thanks to <a href="http://coding.smashingmagazine.com/2009/08/04/designing-a-html-5-layout-from-scratch/">Smashing Magazine</a> and <a href="http://getbootstrap.com/">Twitter Bootstrap</a>.
+                    </p>
+                </address>
+            </div>
+        </div>
+    </footer>
+
+    <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-91055983-1']);
+    _gaq.push(['_trackPageview']);
+    (function() {
+        var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+        ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+        var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+    </script>
+    <script src="//code.jquery.com/jquery.min.js"></script>
+    <script src="//netdna.bootstrapcdn.com/bootstrap/2.3.2/js/bootstrap.min.js"></script>
+</body>
+</html>
